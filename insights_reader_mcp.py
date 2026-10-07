@@ -25,9 +25,6 @@ def _error(exc: Exception) -> dict[str, Any]:
 )
 async def test_connection(
     host: str = Field(..., description="PostgreSQL host."),
-    port: Optional[int] = Field(
-        None, description="PostgreSQL port (defaults to 5432 if omitted or null)."
-    ),
     database: str = Field(..., description="PostgreSQL database name."),
     username: str = Field(..., description="Database user."),
     password: SecretStr = Field(
@@ -35,24 +32,25 @@ async def test_connection(
         description="Database password.",
         json_schema_extra={"format": "password", "ui_type": "password"},
     ),
-    connect_timeout_seconds: int = Field(
-        10, description="Connection timeout in seconds."
+    port: Optional[int] = Field(
+        None, description="PostgreSQL port (defaults to 5432 if omitted or null)."
     ),
+    connect_timeout_seconds: int = Field(10, description="Connection timeout in seconds."),
 ) -> dict[str, Any]:
     """
-    Test a PostgreSQL connection using the provided parameters.
+    Test a PostgreSQL connection using provided connection parameters.
 
     Args:
         host: PostgreSQL host.
-        port: PostgreSQL port (defaults to 5432 if omitted or null).
         database: PostgreSQL database name.
         username: Database user.
         password: Database password (secret).
+        port: PostgreSQL port (defaults to 5432 if omitted or null).
         connect_timeout_seconds: Connection timeout in seconds.
 
     Returns:
-        On success: {"status":"success","reachable":true}
-        On failure: {"status":"failed","message":"..."}
+        Success envelope: {"status":"success","reachable":true}
+        Failure envelope: {"status":"failed","message":"..."}
     """
     try:
         result = await _service.test_connection(
@@ -78,15 +76,15 @@ async def test_connection(
 )
 async def list_schemas(
     host: str = Field(..., description="PostgreSQL host."),
-    port: Optional[int] = Field(
-        None, description="PostgreSQL port (defaults to 5432 if omitted or null)."
-    ),
     database: str = Field(..., description="PostgreSQL database name."),
     username: str = Field(..., description="Database user."),
     password: SecretStr = Field(
         ...,
         description="Database password.",
         json_schema_extra={"format": "password", "ui_type": "password"},
+    ),
+    port: Optional[int] = Field(
+        None, description="PostgreSQL port (defaults to 5432 if omitted or null)."
     ),
     schema_filter: Optional[Sequence[str]] = Field(
         None,
@@ -98,15 +96,15 @@ async def list_schemas(
 
     Args:
         host: PostgreSQL host.
-        port: PostgreSQL port (defaults to 5432 if omitted or null).
         database: PostgreSQL database name.
         username: Database user.
         password: Database password (secret).
-        schema_filter: Optional allow-list of schema names. If omitted/empty, all non-system schemas.
+        port: PostgreSQL port (defaults to 5432 if omitted or null).
+        schema_filter: Optional allow-list of schemas (empty/omitted means all non-system schemas).
 
     Returns:
-        On success: {"status":"success","schemas":[{"schema":"..."},...], ...}
-        On failure: {"status":"failed","message":"..."}
+        Success envelope: {"status":"success","schemas":[{"schema":"..."},...], "truncated": bool, ...}
+        Failure envelope: {"status":"failed","message":"..."}
     """
     try:
         result = await _service.list_schemas(
@@ -132,9 +130,6 @@ async def list_schemas(
 )
 async def list_tables(
     host: str = Field(..., description="PostgreSQL host."),
-    port: Optional[int] = Field(
-        None, description="PostgreSQL port (defaults to 5432 if omitted or null)."
-    ),
     database: str = Field(..., description="PostgreSQL database name."),
     username: str = Field(..., description="Database user."),
     password: SecretStr = Field(
@@ -142,35 +137,35 @@ async def list_tables(
         description="Database password.",
         json_schema_extra={"format": "password", "ui_type": "password"},
     ),
+    port: Optional[int] = Field(
+        None, description="PostgreSQL port (defaults to 5432 if omitted or null)."
+    ),
     schema_filter: Optional[Sequence[str]] = Field(
         None,
         description="Optional allow-list of schemas (empty or omitted = all non-system schemas).",
     ),
-    schema: str = Field(
-        "insights", description="Schema to list relations from (default: insights)."
-    ),
-    include_views: bool = Field(
-        True, description="Include views and materialized views."
-    ),
+    schema: str = Field("insights", description="Schema to list relations from (default: insights)."),
+    include_views: bool = Field(True, description="Include views and materialized views."),
     include_tables: bool = Field(False, description="Include base tables."),
 ) -> dict[str, Any]:
     """
-    List relations (tables/views/materialized views) in the given schema.
+    List relations (tables, views, materialized views) in a schema.
 
     Args:
         host: PostgreSQL host.
-        port: PostgreSQL port (defaults to 5432 if omitted or null).
         database: PostgreSQL database name.
         username: Database user.
         password: Database password (secret).
-        schema_filter: Optional allow-list of schemas.
+        port: PostgreSQL port (defaults to 5432 if omitted or null).
+        schema_filter: Optional allow-list of schemas (empty/omitted means all non-system schemas).
         schema: Schema to list relations from (default: insights).
         include_views: Include views and materialized views.
         include_tables: Include base tables.
 
     Returns:
-        On success: {"status":"success","relations":[{"schema":"...","name":"...","type":"view|materialized_view|table"},...], ...}
-        On failure: {"status":"failed","message":"..."}
+        Success envelope:
+          {"status":"success","relations":[{"schema":"...","name":"...","type":"view|materialized_view|table"},...]}
+        Failure envelope: {"status":"failed","message":"..."}
     """
     try:
         result = await _service.list_tables(
@@ -192,15 +187,10 @@ async def list_tables(
 @mcp.tool(
     name="describe_table",
     title="Describe Table/View",
-    description=(
-        "Return column names, data types, nullability, and ordinal positions for one table or view."
-    ),
+    description="Return column names, data types, nullability, and ordinal positions for one table or view.",
 )
 async def describe_table(
     host: str = Field(..., description="PostgreSQL host."),
-    port: Optional[int] = Field(
-        None, description="PostgreSQL port (defaults to 5432 if omitted or null)."
-    ),
     database: str = Field(..., description="PostgreSQL database name."),
     username: str = Field(..., description="Database user."),
     password: SecretStr = Field(
@@ -208,31 +198,33 @@ async def describe_table(
         description="Database password.",
         json_schema_extra={"format": "password", "ui_type": "password"},
     ),
+    table_name: str = Field(..., description="Table or view name to describe."),
+    port: Optional[int] = Field(
+        None, description="PostgreSQL port (defaults to 5432 if omitted or null)."
+    ),
     schema_filter: Optional[Sequence[str]] = Field(
         None,
         description="Optional allow-list of schemas (empty or omitted = all non-system schemas).",
     ),
-    schema: str = Field(
-        "insights", description="Schema containing the table/view (default: insights)."
-    ),
-    table_name: str = Field(..., description="Table or view name to describe."),
+    schema: str = Field("insights", description="Schema containing the table/view (default: insights)."),
 ) -> dict[str, Any]:
     """
-    Describe a table or view by returning its columns.
+    Describe a table or view (columns, types, nullability, order).
 
     Args:
         host: PostgreSQL host.
-        port: PostgreSQL port (defaults to 5432 if omitted or null).
         database: PostgreSQL database name.
         username: Database user.
         password: Database password (secret).
-        schema_filter: Optional allow-list of schemas.
-        schema: Schema containing the table/view (default: insights).
         table_name: Table or view name to describe.
+        port: PostgreSQL port (defaults to 5432 if omitted or null).
+        schema_filter: Optional allow-list of schemas (empty/omitted means all non-system schemas).
+        schema: Schema containing the table/view (default: insights).
 
     Returns:
-        On success: {"status":"success","schema":"...","table":"...","columns":[...]}
-        On failure: {"status":"failed","message":"..."}
+        Success envelope:
+          {"status":"success","schema":"...","table":"...","columns":[{"name":"...","data_type":"...","nullable":bool,"ordinal_position":int},...]}
+        Failure envelope: {"status":"failed","message":"..."}
     """
     try:
         result = await _service.describe_table(
@@ -260,9 +252,6 @@ async def describe_table(
 )
 async def execute_query(
     host: str = Field(..., description="PostgreSQL host."),
-    port: Optional[int] = Field(
-        None, description="PostgreSQL port (defaults to 5432 if omitted or null)."
-    ),
     database: str = Field(..., description="PostgreSQL database name."),
     username: str = Field(..., description="Database user."),
     password: SecretStr = Field(
@@ -270,19 +259,22 @@ async def execute_query(
         description="Database password.",
         json_schema_extra={"format": "password", "ui_type": "password"},
     ),
-    schema_filter: Optional[Sequence[str]] = Field(
-        None,
-        description="Optional allow-list of schemas (empty or omitted = all non-system schemas).",
-    ),
     query: str = Field(
         ...,
         description="SQL query text. Must be a single read-only statement starting with SELECT or WITH.",
+    ),
+    port: Optional[int] = Field(
+        None, description="PostgreSQL port (defaults to 5432 if omitted or null)."
+    ),
+    schema_filter: Optional[Sequence[str]] = Field(
+        None,
+        description="Optional allow-list of schemas (empty or omitted = all non-system schemas).",
     ),
     query_params: Optional[Sequence[Any]] = Field(
         None,
         description="Optional positional parameters for psycopg2 (%s placeholders).",
     ),
-    max_rows: int = Field(None, description="Maximum number of rows to return."),  # type: ignore[assignment]
+    max_rows: Optional[int] = Field(None, description="Maximum number of rows to return."),
     default_schema: str = Field(
         "insights",
         description="Schema to set as the first entry in search_path for the query (default: insights).",
@@ -300,30 +292,29 @@ async def execute_query(
     ),
 ) -> dict[str, Any]:
     """
-    Execute a single read-only query and return tabular results.
+    Execute a single read-only SELECT/WITH query and return a capped result set.
 
     Args:
         host: PostgreSQL host.
-        port: PostgreSQL port (defaults to 5432 if omitted or null).
         database: PostgreSQL database name.
         username: Database user.
         password: Database password (secret).
-        schema_filter: Optional allow-list of schemas.
-        query: SQL query text; must be a single SELECT/WITH statement.
-        query_params: Optional positional parameters matching %s placeholders in query.
-        max_rows: Maximum number of rows to return (server enforces internal hard cap).
-        default_schema: Schema to prioritize in search_path.
+        query: SQL query text; must be a single read-only statement starting with SELECT or WITH.
+        port: PostgreSQL port (defaults to 5432 if omitted or null).
+        schema_filter: Optional allow-list of schemas (empty/omitted means all non-system schemas).
+        query_params: Optional positional parameters for psycopg2 (%s placeholders).
+        max_rows: Maximum number of rows to return (defaults to 200 if omitted).
+        default_schema: Schema to prioritize first in search_path.
         enforce_default_schema_only: Best-effort restriction on schema-qualified references.
-        statement_timeout_seconds: Statement timeout applied via SET LOCAL.
+        statement_timeout_seconds: Server-side statement timeout in seconds.
 
     Returns:
-        On success: {"status":"success","columns":[...],"rows":[...],"row_count":N,"truncated":true|false, ...}
-        On failure: {"status":"failed","message":"..."}
+        Success envelope:
+          {"status":"success","columns":[...],"rows":[...],"row_count":int,"truncated":bool, ...}
+        Failure envelope: {"status":"failed","message":"..."}
     """
     try:
-        # Keep adapter logic minimal: only apply the documented default when omitted/null.
         effective_max_rows = 200 if max_rows is None else max_rows
-
         result = await _service.execute_query(
             host=host,
             port=port,
