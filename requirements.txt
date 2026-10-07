@@ -1,0 +1,14 @@
+fastmcp~=2.14.2
+pydantic>=2,<3
+# Platform session authentication (src/security/mcp_auth.py):
+# PyJWT verifies the platform's RS256 session JWT, `cryptography` is
+# the RS256 backend, `redis` resolves the login-token session handle.
+PyJWT~=2.10.1
+cryptography>=42.0.0
+redis~=7.1.0
+fastmcp>=0.4.0,<1.0.0
+psycopg2-binary>=2.9,<3.0
+
+# test-only
+pytest>=8,<9
+pytest-asyncio>=0.24
